@@ -1,89 +1,181 @@
+# WhatsApp Clone - Build Plan
 
-# Chatvybz Migration Plan
-
-## Current Status
-
-**Issue**: The `package.json` is missing the required `build:dev` script, causing the build to fail.
-
-**Project State**: The Lovable project contains only a blank starter template with default files. Your 50+ pages and 60+ services from the original Chatvybz project need to be migrated.
+## Overview
+A full-featured WhatsApp clone with real-time messaging, voice/video calls, group chats, and media sharing. Authentication via phone number (SMS).
 
 ---
 
-## Step 1: Fix the Build Error (You Need to Do This)
+## Architecture
 
-Since I cannot edit `package.json` directly, you need to add the missing script:
+### Tech Stack
+- **Frontend**: React + TypeScript + Tailwind CSS + Framer Motion
+- **Backend**: Lovable Cloud (Supabase)
+- **Real-time**: Supabase Realtime for messaging
+- **Calls**: WebRTC with STUN/TURN servers
+- **SMS Auth**: Twilio via Edge Functions
+- **File Storage**: Supabase Storage
 
-1. Click the **Code** button (top-left of the preview)
-2. Open `package.json`
-3. Find the `"scripts"` section (around line 86)
-4. Change it from:
-```json
-"scripts": {
-  "start": "vite",
-  "build": "vite build --sourcemap",
-  "serve": "vite preview"
-}
+---
+
+## Phase 1: Foundation & Authentication
+
+### 1.1 Database Schema
+```sql
+-- Users/Profiles
+profiles (id, phone, display_name, avatar_url, about, last_seen, online)
+
+-- User Roles (security)
+user_roles (id, user_id, role)
+
+-- Contacts
+contacts (id, user_id, contact_user_id, nickname, blocked)
 ```
-To:
-```json
-"scripts": {
-  "start": "vite",
-  "build": "vite build --sourcemap",
-  "build:dev": "vite build --mode development",
-  "serve": "vite preview"
-}
+
+### 1.2 Phone Authentication Flow
+1. User enters phone number
+2. Edge function sends OTP via Twilio
+3. User enters OTP code
+4. Supabase Auth validates and creates session
+5. Profile created via database trigger
+
+### 1.3 Core Pages
+- `/login` - Phone number input
+- `/verify` - OTP verification
+- `/profile-setup` - Name, avatar on first login
+
+---
+
+## Phase 2: Messaging Core
+
+### 2.1 Database Schema
+```sql
+-- Conversations (1:1 and group)
+conversations (id, type, name, avatar_url, created_by, created_at)
+
+-- Participants
+conversation_participants (conversation_id, user_id, role, joined_at, last_read_at)
+
+-- Messages
+messages (id, conversation_id, sender_id, content, type, media_url, reply_to_id, created_at, edited_at, deleted_at)
+
+-- Message status
+message_receipts (message_id, user_id, delivered_at, read_at)
 ```
-5. Save the file
+
+### 2.2 Features
+- Real-time message sync via Supabase Realtime
+- Typing indicators
+- Read receipts (double blue ticks)
+- Message replies
+- Message editing/deletion
+- Emoji reactions
+
+### 2.3 Pages
+- `/chats` - Conversation list
+- `/chat/:id` - Individual chat view
 
 ---
 
-## Step 2: Migration Strategy
+## Phase 3: Media Sharing
 
-Once the build is working, we'll migrate your Chatvybz project in batches:
+### 3.1 Storage Buckets
+- `chat-media` - Images, videos, documents
+- `voice-notes` - Audio recordings
+- `avatars` - Profile pictures
 
-### Phase 1: Core Foundation
-Upload these folders/files first (5-10 files per message):
-- `src/pages/` - Core pages like Login, Home, Chat
-- `src/App.tsx` and `src/Routes.tsx` - Main routing
-
-### Phase 2: Components
-- `src/components/` - UI components in batches
-
-### Phase 3: Services & Logic
-- `src/services/` - API and backend services
-- `src/hooks/` - Custom React hooks
-- `src/store/` or `src/redux/` - State management
-
-### Phase 4: Assets & Config
-- `src/styles/` or CSS files
-- `public/` assets
-- Configuration files
+### 3.2 Features
+- Image/video upload with preview
+- Document sharing (PDF, DOC, etc.)
+- Voice note recording (WaveSurfer.js)
+- Image compression before upload
+- Thumbnail generation
 
 ---
 
-## What I'll Do For Each Batch
+## Phase 4: Group Chats
 
-For each batch of files you upload:
-1. Review and adapt imports/paths for Lovable's structure
-2. Fix any TypeScript errors
-3. Integrate with existing UI components
-4. Update routing in `App.tsx`
-5. Test the integration
+### 4.1 Features
+- Create group with name & icon
+- Add/remove participants
+- Admin roles (admin, member)
+- Group settings (only admins can send, etc.)
+- Leave group
+- Group info page
 
----
-
-## Technical Notes
-
-**Dependencies**: Already in place - Supabase, Socket.IO, Stripe, TweetNaCl, WaveSurfer.js, and AI SDKs are all installed.
-
-**Backend**: You'll need to connect Lovable Cloud (Supabase) for database, auth, and edge functions. This can be done after the code is migrated.
+### 4.2 Pages
+- `/group/new` - Create group
+- `/group/:id/settings` - Group management
 
 ---
 
-## Next Steps
+## Phase 5: Voice & Video Calls
 
-1. **Fix the build:dev script** in the Code Editor (see Step 1 above)
-2. **Confirm the build works** by sending a message
-3. **Start uploading files** from `src/pages/` (5-10 files at a time)
+### 5.1 Database
+```sql
+calls (id, caller_id, callee_id, conversation_id, type, status, started_at, ended_at)
+```
 
-Ready to proceed once you've added the script!
+### 5.2 WebRTC Implementation
+- Signaling via Supabase Realtime
+- STUN servers for NAT traversal
+- 1:1 voice calls
+- 1:1 video calls
+- Call UI (incoming, ongoing, ended)
+
+### 5.3 Features
+- Incoming call notification
+- Accept/decline
+- Mute/unmute
+- Camera toggle
+- Speaker toggle
+- Call duration display
+
+---
+
+## Phase 6: Advanced Features
+
+### 6.1 Status/Stories
+- 24-hour disappearing status updates
+- Text, image, video statuses
+- View count
+
+### 6.2 Additional
+- Contact search & add
+- Block/unblock users
+- Notification sounds
+- Push notifications (PWA)
+- Dark/light theme
+- Message search
+- Starred messages
+
+---
+
+## Implementation Order
+
+1. **Enable Lovable Cloud** ← First step
+2. **Database schema** - All tables with RLS
+3. **Auth flow** - Phone + Twilio OTP
+4. **Basic UI** - Login, chat list, chat view
+5. **Real-time messaging** - Send/receive
+6. **Media sharing** - Images, voice notes
+7. **Group chats** - Create, manage
+8. **Voice calls** - WebRTC 1:1
+9. **Video calls** - WebRTC 1:1
+10. **Polish** - Animations, sounds, PWA
+
+---
+
+## Dependencies Needed
+- ✅ react, react-dom (installed)
+- ✅ framer-motion (installed)
+- ✅ wavesurfer.js (installed)
+- ✅ simple-peer (installed) - WebRTC
+- ✅ socket.io-client (installed) - backup signaling
+- ✅ lucide-react (installed)
+- Need: Twilio credentials for SMS
+
+---
+
+## Ready to Start?
+
+Reply with "Start Phase 1" to begin building!
